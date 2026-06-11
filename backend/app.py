@@ -141,7 +141,7 @@ def manager_dashboard(
 
 @app.post("/upload-document")
 def upload_document(
-    role_access: str,
+    current_user=Depends(get_current_user),
     file: UploadFile = File(...)
 ):
 
@@ -155,7 +155,7 @@ def upload_document(
     document = Document(
         filename=file.filename,
         filepath=filepath,
-        role_access=role_access
+        role_access=current_user["role"]
     )
 
     db.add(document)
@@ -164,4 +164,41 @@ def upload_document(
 
     return {
         "message": "File uploaded successfully"
+    }
+
+@app.get("/documents")
+def get_documents(
+    current_user=Depends(get_current_user)
+):
+    db = SessionLocal()
+
+    role_levels = {
+        "Employee": 1,
+        "Manager": 2,
+        "HR": 3,
+        "CEO": 4
+    }
+
+    current_level = role_levels[
+        current_user["role"]
+    ]
+
+    documents = db.query(Document).all()
+
+    allowed_documents = []
+
+    for document in documents:
+
+        document_level = role_levels[
+            document.role_access
+        ]
+
+        if current_level >= document_level:
+
+            allowed_documents.append(
+                document.filename
+            )
+
+    return {
+        "documents": allowed_documents
     }
