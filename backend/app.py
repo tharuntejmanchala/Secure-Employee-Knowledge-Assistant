@@ -15,7 +15,8 @@ from dependencies import get_current_user
 from database import SessionLocal
 from models import Document
 app = FastAPI()
-
+from pypdf import PdfReader
+from models import DocumentChunk
 Base.metadata.create_all(bind=engine)
 
 @app.get("/")
@@ -159,11 +160,51 @@ def upload_document(
     )
 
     db.add(document)
+    db.commit()
+
+    db.refresh(document)
+
+    # PDF Text Extraction
+
+    reader = PdfReader(filepath)
+
+    text = ""
+
+    for page in reader.pages:
+        page_text = page.extract_text()
+
+        if page_text:
+            text += page_text
+
+    # Chunking
+
+    chunks = []
+
+    chunk_size = 1000
+
+    for i in range(0, len(text), chunk_size):
+
+        chunk = text[i:i + chunk_size]
+
+        chunks.append(chunk)
+
+    # Store Chunks
+
+    for chunk in chunks:
+
+        document_chunk = DocumentChunk(
+            document_id=document.id,
+            chunk_text=chunk
+        )
+
+        db.add(document_chunk)
 
     db.commit()
 
     return {
-        "message": "File uploaded successfully"
+        "message": "File uploaded successfully",
+        "document_id": document.id,
+        "chunks_created": len(chunks)
     }
 
 @app.get("/documents")

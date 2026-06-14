@@ -27,3 +27,13 @@ class Document(Base):
     filepath = Column(String)
 
     role_access = Column(String)
+
+class DocumentChunk(Base):
+
+    __tablename__ = "document_chunks"
+
+    id = Column(Integer, primary_key=True)
+
+    document_id = Column(Integer)
+
+    chunk_text = Column(String)
