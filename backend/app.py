@@ -1,7 +1,14 @@
 from fastapi import FastAPI,Depends
 from schemas import RegisterRequest, LoginRequest
 from schemas import QuestionRequest
+from fastapi import Depends
 
+from dependencies import get_current_user
+from qdrant_client.models import (
+    Filter,
+    FieldCondition,
+    MatchValue
+)
 import ollama
 
 from sentence_transformers import SentenceTransformer
@@ -257,9 +264,17 @@ def get_documents(
     return {
         "documents": allowed_documents
     }
-
 @app.post("/ask")
-def ask_question(request: QuestionRequest):
+def ask_question(
+    request: QuestionRequest,
+    current_user=Depends(get_current_user)
+):
+
+    print("Current User:", current_user)
+
+    user_role = current_user["role"]
+
+    print("User Role:", user_role)
 
     question = request.question
 
@@ -268,8 +283,25 @@ def ask_question(request: QuestionRequest):
     results = client.query_points(
         collection_name="document_embeddings",
         query=query_embedding.tolist(),
-        limit=3
+        limit=3,
+        query_filter=Filter(
+            must=[
+                FieldCondition(
+                    key="role_access",
+                    match=MatchValue(
+                        value=user_role
+                    )
+                )
+            ]
+        )
     )
+
+    print("Points Found:", len(results.points))
+
+    if len(results.points) == 0:
+        return {
+            "answer": "No relevant documents found for your role."
+        }
 
     context = "\n".join(
         point.payload["text"]
@@ -298,8 +330,6 @@ Answer:
         ]
     )
 
-    answer = response["message"]["content"]
-
     return {
-        "answer": answer
+        "answer": response["message"]["content"]
     }

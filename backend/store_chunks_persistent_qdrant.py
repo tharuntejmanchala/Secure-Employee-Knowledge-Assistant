@@ -1,5 +1,5 @@
 from database import SessionLocal
-from models import DocumentChunk
+from models import DocumentChunk, Document
 
 from qdrant_db import client
 
@@ -19,21 +19,28 @@ points = []
 
 for chunk in chunks:
 
+    document = db.query(Document).filter(
+        Document.id == chunk.document_id
+    ).first()
+
     embedding = model.encode(
         chunk.chunk_text
     )
 
-    points.append(
-        PointStruct(
-            id=chunk.id,
-            vector=embedding.tolist(),
-            payload={
-                "chunk_id": chunk.id,
-                "document_id": chunk.document_id,
-                "text": chunk.chunk_text
-            }
-        )
+    point = PointStruct(
+        id=chunk.id,
+        vector=embedding.tolist(),
+        payload={
+            "chunk_id": chunk.id,
+            "document_id": chunk.document_id,
+            "role_access": document.role_access,
+            "text": chunk.chunk_text
+        }
     )
+
+    print(point.payload)   # ADD THIS
+
+    points.append(point)
 
 client.upsert(
     collection_name="document_embeddings",
@@ -41,7 +48,7 @@ client.upsert(
 )
 
 print(
-    f"{len(points)} vectors stored!"
+    f"{len(points)} vectors stored successfully!"
 )
 
 db.close()
