@@ -1,5 +1,15 @@
 from fastapi import FastAPI,Depends
 from schemas import RegisterRequest, LoginRequest
+from schemas import QuestionRequest
+
+import ollama
+
+from sentence_transformers import SentenceTransformer
+
+from qdrant_db import client
+
+from schemas import QuestionRequest
+
 from security import (
     hash_password,
     verify_password,
@@ -18,6 +28,10 @@ app = FastAPI()
 from pypdf import PdfReader
 from models import DocumentChunk
 Base.metadata.create_all(bind=engine)
+
+model = SentenceTransformer(
+    "all-MiniLM-L6-v2"
+)
 
 @app.get("/")
 def home():
@@ -242,4 +256,50 @@ def get_documents(
 
     return {
         "documents": allowed_documents
+    }
+
+@app.post("/ask")
+def ask_question(request: QuestionRequest):
+
+    question = request.question
+
+    query_embedding = model.encode(question)
+
+    results = client.query_points(
+        collection_name="document_embeddings",
+        query=query_embedding.tolist(),
+        limit=3
+    )
+
+    context = "\n".join(
+        point.payload["text"]
+        for point in results.points
+    )
+
+    prompt = f"""
+Answer the question using only the context below.
+
+Context:
+{context}
+
+Question:
+{question}
+
+Answer:
+"""
+
+    response = ollama.chat(
+        model="llama3.2:3b",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+
+    answer = response["message"]["content"]
+
+    return {
+        "answer": answer
     }
