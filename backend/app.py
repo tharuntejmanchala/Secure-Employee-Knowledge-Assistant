@@ -1,3 +1,7 @@
+from http.client import HTTPException
+from urllib import response
+from urllib import response
+from fastapi import HTTPException
 from fastapi import FastAPI,Depends
 from schemas import RegisterRequest, LoginRequest
 from schemas import QuestionRequest
@@ -187,7 +191,13 @@ def upload_document(
 
     # PDF Text Extraction
 
-    reader = PdfReader(filepath)
+    try:
+        reader = PdfReader(filepath)
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid PDF file"
+        )
 
     text = ""
 
@@ -278,6 +288,12 @@ def ask_question(
 
     question = request.question
 
+    if not question.strip():
+     raise HTTPException(
+        status_code=400,
+        detail="Question cannot be empty"
+    )
+
     query_embedding = model.encode(question)
 
     results = client.query_points(
@@ -330,6 +346,39 @@ Answer:
         ]
     )
 
+    answer = response["message"]["content"]
+
     return {
-        "answer": response["message"]["content"]
+        "question": question,
+        "role": user_role,
+        "chunks_retrieved": len(results.points),
+        "answer": answer
     }
+
+
+@app.get("/stats")
+def stats():
+
+    db = SessionLocal()
+
+    users = db.query(User).count()
+
+    documents = db.query(Document).count()
+
+    chunks = db.query(DocumentChunk).count()
+
+    db.close()
+
+    return {
+        "users": users,
+        "documents": documents,
+        "chunks": chunks
+    }
+
+
+@app.get("/")
+def home():
+    return {
+        "message": "Secure Employee Knowledge Assistant Running"
+    }
+
