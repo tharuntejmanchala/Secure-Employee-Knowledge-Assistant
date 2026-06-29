@@ -1,0 +1,20 @@
+body{
+    background:#f5f7fb;
+}
+
+.card{
+    transition:0.3s;
+}
+
+.card:hover{
+    transform:translateY(-5px);
+    box-shadow:0 12px 25px rgba(0,0,0,0.15);
+}
+
+.list-group-item{
+    transition:0.2s;
+}
+
+.list-group-item:hover{
+    background:#f1f5ff;
+}
