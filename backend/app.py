@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from qdrant_client.models import PointStruct
 from dependencies import get_current_user
 import os
+from fastapi.responses import FileResponse
 from qdrant_client.models import (
     Filter,
     FieldCondition,
@@ -609,3 +610,53 @@ def delete_document(
         "message": "Document deleted successfully"
 
     }
+
+@app.get("/view-document/{filename}")
+def view_document(
+    filename: str,
+    current_user=Depends(get_current_user)
+):
+
+    db = SessionLocal()
+
+    document = db.query(Document).filter(
+        Document.filename == filename
+    ).first()
+
+    if not document:
+
+        db.close()
+
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    role_levels = {
+        "Employee": 1,
+        "Manager": 2,
+        "HR": 3,
+        "CEO": 4
+    }
+
+    user_level = role_levels[current_user["role"]]
+    document_level = role_levels[document.role_access]
+
+    if user_level < document_level:
+
+        db.close()
+
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied"
+        )
+
+    filepath = document.filepath
+
+    db.close()
+
+    return FileResponse(
+        path=filepath,
+        media_type="application/pdf",
+        filename=document.filename
+    )

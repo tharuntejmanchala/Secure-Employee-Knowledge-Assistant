@@ -32,6 +32,20 @@ const [search, setSearch] = useState("");
 
     };
 
+    const viewDocument = async (filename) => {
+
+    const token = localStorage.getItem("token");
+
+    window.open(
+
+        `http://127.0.0.1:8000/view-document/${encodeURIComponent(filename)}?token=${token}`,
+
+        "_blank"
+
+    );
+
+};
+
     const deleteDocument = async (filename) => {
 
         if (!window.confirm("Delete this document?")) {
@@ -135,14 +149,31 @@ const [search, setSearch] = useState("");
 
                             </div>
 
-                            <button
-                                className="btn btn-danger"
-                                onClick={() => deleteDocument(document)}
-                            >
+<div>
 
-                                <i className="bi bi-trash"></i>
+    <button
+        className="btn btn-primary me-2"
+        onClick={() =>
+            viewDocument(document)
+        }
+    >
 
-                            </button>
+        <i className="bi bi-eye"></i>
+
+    </button>
+
+    <button
+        className="btn btn-danger"
+        onClick={() =>
+            deleteDocument(document)
+        }
+    >
+
+        <i className="bi bi-trash"></i>
+
+    </button>
+
+</div>
 
                         </div>
 
